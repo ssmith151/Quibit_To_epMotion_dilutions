@@ -1,0 +1,11 @@
+Rack,Src.Barcode,Src.List Name,Dest.Barcode,Dest.List Name,,,
+1,,,,,,,
+2,,,,,,,
+3,,,,,,,
+4,,,,,,,
+,,,,,,,
+Barcode ID,Rack,Source,Rack,Destination,Volume,Tool,Name
+,1,A1,1,A1,173.4433098,TS_300,
+,1,A2,1,A2,182.022397,TS_300,
+,1,A3,1,A3,177.058856,TS_300,
+,1,A4,1,A4,162.3747153,TS_300,

@@ -310,15 +310,159 @@ namespace QuibitToIlluminaDNA
             foreach (DataGridViewRow row in dataGridViewOut.Rows)
             {
                 DataRow thisRow = exportTable.NewRow();
-                foreach(DataGridViewCell cell in row.Cells)
+                foreach (DataGridViewCell cell in row.Cells)
                 {
                     thisRow[cell.ColumnIndex] = cell.Value;
                 }
                 exportTable.Rows.Add(thisRow);
             }
-            DataTable TEtable = exportTable;
-            DataRow[] teRows = TEtable.Select("[TE final well] <> 'None' OR [TE intermediate well] <> 'None'");
-            MessageBox.Show(teRows.ToString());
+            //DataView teDataView = new DataView(exportTable);
+            //teDataView.RowFilter = "[TE final well] <> 'None' OR [TE intermediate well] <> 'None'";
+            List<string> teStringList = new List<string>();
+            DataRow[] workingRows = exportTable.Select("[TE final well] <> 'None'");
+            foreach (DataRow teRow in workingRows)
+            {
+                teStringList.Add(teRow.ItemArray[3].ToString());
+            }
+            workingRows = exportTable.Select("[TE intermediate well] <> 'None'");
+            foreach (DataRow teRow in workingRows)
+            {
+                //
+                // There needs to be a fix for each one of the transfer types for this to work
+                //
+                EppCsvString epOutstring = new EppCsvString();
+                epOutstring.IntakeTableData(teRow.ItemArray, (int)TransferType.TeIntermediate);
+                //teStringList.Add(teRow.ItemArray[4].ToString());
+            }
+        }
+        /// <summary>
+        /// Output string creator class.  Stores dilution data as epMotion formated csv output strings.
+        /// </summary>
+        private class EppCsvString
+        {
+            string textOut;
+            bool assignProblem;
+
+            string barcodeID;
+            string sourceRack;
+            string sourceWell;
+            string destinationRack;
+            string destinationWell;
+            string volume;
+            string tool;
+            string name;
+
+            public EppCsvString()
+            {
+                name = "";
+                barcodeID = "";
+                assignProblem = false;
+            }
+            public void IntakeTableData(object[] dataRowIn, int transferTypeIn )
+            {
+                assignWell(dataRowIn[0].ToString());
+                assignVolume(Convert.ToDouble(dataRowIn[4]));
+                assignRack(transferTypeIn);
+                if (assignProblem)
+                    return;
+
+            }
+            private void GenerateString()
+            {
+                textOut = "";
+                textOut += barcodeID + ",";
+                textOut += sourceRack + ",";
+                textOut += sourceWell + ",";
+                textOut += destinationRack + ",";
+                textOut += destinationWell + ",";
+                textOut += volume + ",";
+                textOut += tool + ",";
+                textOut += name + ",";
+            }
+            public void assignWell(string wellIn)
+            {
+                destinationWell = wellIn;
+                sourceWell = wellIn;
+                if (wellIn == null)
+                    assignProblem = true;
+            }
+            public void assignVolume(double volumeIn)
+            {
+                volume = Math.Round(volumeIn, 2).ToString();
+                volumeIn = Math.Round(volumeIn, 2);
+                if (volumeIn <= 50 && volumeIn > 0)
+                    tool = "TS_50";
+                else if (volumeIn > 50 && volumeIn <= 300)
+                    tool = "TS_300";
+                else if (volumeIn > 300 && volumeIn <= 1000)
+                    tool = "TS_1000";
+                else {
+                    tool = "";
+                    assignProblem = true;
+                }
+            }
+            public void assignRack(int sampleType)
+            {
+                switch (sampleType)
+                {
+                    case (int)TransferType.TeIntermediate:
+                        sourceRack = "1";
+                        destinationRack = "1";
+                        break;
+                    case (int)TransferType.TeFinal:
+                        sourceRack = "1";
+                        destinationRack = "2";
+                        break;
+                    case (int)TransferType.DiluteDna2Intermediate:
+                        sourceRack = "1";
+                        destinationRack = "1";
+                        break;
+                    case (int)TransferType.OriginalDna2Intermediate:
+                        sourceRack = "2";
+                        destinationRack = "1";
+                        break;
+                    case (int)TransferType.DiluteDna2Final:
+                        sourceRack = "1";
+                        destinationRack = "2";
+                        break;
+                    case (int)TransferType.OrginalDna2Final:
+                        sourceRack = "2";
+                        destinationRack = "2";
+                        break;
+                    case (int)TransferType.Intermediate2Final:
+                        sourceRack = "3";
+                        destinationRack = "2";
+                        break;
+                    default:
+                        sourceRack = "";
+                        destinationRack = "";
+                        assignProblem = true;
+                        break;
+                }
+
+            }
+            
+        }
+        static List<string> ImportEppCsv()
+        {
+            List<string> eppFileHeader = new List<string>(7);
+            eppFileHeader[0] = "Rack,Src.Barcode,Src.List Name,Dest.Barcode,Dest.List Name,,,";
+            eppFileHeader[1] = "1,,,,,,,";
+            eppFileHeader[2] = "2,,,,,,,";
+            eppFileHeader[3] = "3,,,,,,,";
+            eppFileHeader[4] = "4,,,,,,,";
+            eppFileHeader[5] = ",,,,,,,";
+            eppFileHeader[6] = "Barcode ID, Rack, Source, Rack, Destination, Volume, Tool, Name";
+            //eppFileHeader[7] = ",1,A1,1,A1,173.4433098,TS_300,";   // samples for you
+            //eppFileHeader[8] = ",1,A2,1,A2,182.022397,TS_300,";
+            //eppFileHeader[9] = ",1,A3,1,A3,177.058856,TS_300,";
+            //eppFileHeader[10] = ",1,A4,1,A4,162.3747153,TS_300,";
+            return eppFileHeader;
+        }
+        public enum TransferType
+        {
+            TeIntermediate, TeFinal,
+            DiluteDna2Intermediate, OriginalDna2Intermediate, DiluteDna2Final, OrginalDna2Final, Intermediate2Final
         }
     }
 }

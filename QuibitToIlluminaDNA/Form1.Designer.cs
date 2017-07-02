@@ -134,6 +134,7 @@
             // 
             // FinishButton
             // 
+            this.FinishButton.Anchor = ((System.Windows.Forms.AnchorStyles)((System.Windows.Forms.AnchorStyles.Bottom | System.Windows.Forms.AnchorStyles.Right)));
             this.FinishButton.BackColor = System.Drawing.SystemColors.ControlLight;
             this.FinishButton.Location = new System.Drawing.Point(462, 370);
             this.FinishButton.Name = "FinishButton";
@@ -145,6 +146,7 @@
             // 
             // ExportFilesButton
             // 
+            this.ExportFilesButton.Anchor = ((System.Windows.Forms.AnchorStyles)((System.Windows.Forms.AnchorStyles.Bottom | System.Windows.Forms.AnchorStyles.Right)));
             this.ExportFilesButton.Enabled = false;
             this.ExportFilesButton.Location = new System.Drawing.Point(274, 370);
             this.ExportFilesButton.Name = "ExportFilesButton";
