@@ -22,6 +22,8 @@ namespace QuibitToIlluminaDNA
         public float teVolumeFinal = (float)0.0;
         public string wellIn = "A1";
         public bool usingDiluteInput;
+        public bool useLowDNA;
+        public bool useHighDNA;
 
         public MainForm()
         {
@@ -101,6 +103,27 @@ namespace QuibitToIlluminaDNA
                 {
                     dnaConcentrationIn = double.Parse(thisline.Split(',')[6]);
                 }
+                catch (FormatException formatExpt)
+                {
+                    try
+                    {
+                        double nearControl = double.Parse(thisline.Split(',')[10]);
+                        double farControl = double.Parse(thisline.Split(',')[11]);
+                        double farReading = double.Parse(thisline.Split(',')[15]);
+                        if (farReading + 2000 > farControl)
+                        {
+                            lineOut.Add(DilutionLineFromInput(false));
+                        } else if (farReading < (nearControl * 2))
+                        {
+                            lineOut.Add(DilutionLineFromInput(true));
+                        }
+                    }
+                    catch (Exception formatDoubleException)
+                    {
+                        System.AggregateException ae = new AggregateException(formatExpt, formatDoubleException);
+                        throw ae.InnerException;
+                    }
+                }
                 catch (Exception theException)
                 {
                     String errorMessage;
@@ -108,12 +131,58 @@ namespace QuibitToIlluminaDNA
                     errorMessage = String.Concat(errorMessage, theException.Message);
                     errorMessage = String.Concat(errorMessage, " Line: ");
                     errorMessage = String.Concat(errorMessage, theException.Source);
+                    Console.Write(errorMessage);
                 }
-                lineOut.Add(DilutionLineFromInput(dnaConcentrationIn));
+                if(dnaConcentrationIn != 0)
+                    lineOut.Add(DilutionLineFromInput(dnaConcentrationIn));
+                
                 NextWell();
             }
+            lineOut.RemoveAll(x => x == null);
             dataGridViewOut.DataSource = PopulateTable(lineOut);
             ExportFilesButton.Enabled = true;
+        }
+        public string[] DilutionLineFromInput(bool tooLow)
+        {
+            string[] lineOutput = new string[7];
+            // Well     Input DNA   Dilution Ratio  TE intermediate well    TE final well   Final Volume    Final Concentration
+            // 1        2           3               4                       5               6               7
+            lineOutput[0] = wellIn;
+
+            if (tooLow  && !useLowDNA)
+            {
+                lineOutput[1] = "Low";
+                lineOutput[2] = "0";
+                lineOutput[3] = "None";
+                lineOutput[4] = "None";
+                lineOutput[5] = "None";
+                lineOutput[6] = "Low";
+            } else if (!tooLow && useHighDNA)
+            {
+                lineOutput[1] = "High";
+                lineOutput[2] = "1:100";
+                lineOutput[3] = "1000";
+                lineOutput[4] = "40";
+                lineOutput[5] = "50";
+                lineOutput[6] = "High";
+            } else if (tooLow && useLowDNA)
+            {
+                lineOutput[1] = "Low";
+                lineOutput[2] = "0";
+                lineOutput[3] = "None";
+                lineOutput[4] = "None";
+                lineOutput[5] = "20";
+                lineOutput[6] = "Low";
+            } else if (!tooLow && !useHighDNA)
+            {
+                lineOutput[1] = "High";
+                lineOutput[2] = "0";
+                lineOutput[3] = "None";
+                lineOutput[4] = "None";
+                lineOutput[5] = "None";
+                lineOutput[6] = "High";
+            }
+            return lineOutput;
         }
         public string[] DilutionLineFromInput( double dnaConIn)
         {
@@ -132,7 +201,7 @@ namespace QuibitToIlluminaDNA
             }
             else if (dnaConIn < dnaConcetrationFinal - 0.02)
             {
-                if (usingDiluteInput)
+                if (usingDiluteInput && useLowDNA)
                 {
                     // for bad DNA < initial concentration, use original
                     lineOutput[1] = "Orig " + dnaConIn * 10;
@@ -143,7 +212,7 @@ namespace QuibitToIlluminaDNA
                     lineOutput[6] = (dnaConIn / Convert.ToDouble(lineOutput[5])).ToString();
                 } else
                 {
-                    // assuming there is no original, use inputDNA
+                   
                     lineOutput[2] = "0";
                     lineOutput[3] = "None";
                     lineOutput[4] = "None";
@@ -178,14 +247,27 @@ namespace QuibitToIlluminaDNA
                 }
                 else
                 {
-                    lineOutput[2] = "1:" + dilutionFactor.ToString();
-                    lineOutput[3] = "None";
-                    lineOutput[4] = "None";
-                    lineOutput[5] = "None";
-                    lineOutput[6] = "Concentration too high";
+                    if (!useHighDNA)
+                    {
+                        lineOutput[2] = "1:" + dilutionFactor.ToString();
+                        lineOutput[3] = "None";
+                        lineOutput[4] = "None";
+                        lineOutput[5] = "None";
+                        lineOutput[6] = "Concentration too high";
+                    } else
+                    {
+                        var dnaConcentrationIntermediate = dnaConIn / 100;
+                        string[] s = { dnaConIn.ToString(), dilutionFactor.ToString(), ((dilutionFactor * dnaVolumeInitial) - dnaVolumeInitial).ToString(), TEOnlyAddition(dnaVolumeInitial, dnaConcentrationIntermediate, dnaConcetrationFinal).ToString() };
+                        lineOutput[2] = "1:100";
+                        // TODO : turn this into math
+                        lineOutput[3] = ((100 * dnaVolumeInitial) - dnaVolumeInitial).ToString();
+                        lineOutput[4] = "40";
+                        lineOutput[5] = (40 + dnaVolumeInitial).ToString();
+                        lineOutput[6] = (dnaConcentrationIntermediate * (dnaVolumeInitial / Convert.ToDouble(lineOutput[5]))).ToString();
+                    }
+                    
                 }
             }
-
             return lineOutput;
         }
         public DataTable PopulateTable(List<string[]> listIn)
@@ -203,8 +285,10 @@ namespace QuibitToIlluminaDNA
             }
             for (int i = 0; i < listIn.Count()-1; i++)
             {
+                if (listIn[i] == null)
+                    continue;
                 for (int j = 0; j < listIn[i].Count(); j++) {
-                    if (listIn[j][j] != null && listIn.Count() > 0)
+                    if (listIn[i][j] != null && listIn.Count() > 0)
                         tableOut.Rows[i][j] = listIn[i][j];
                 }
             }
@@ -316,52 +400,153 @@ namespace QuibitToIlluminaDNA
                 }
                 exportTable.Rows.Add(thisRow);
             }
-            //DataView teDataView = new DataView(exportTable);
-            //teDataView.RowFilter = "[TE final well] <> 'None' OR [TE intermediate well] <> 'None'";
+           
             List<string> teStringList = new List<string>();
-
-            /// turn this whole thing into a for loop
-            /// for (int transfertype = 0; transfertype < 7; transfertype++){
-            ///     switch (transfertype){
-            ///         case 0 : 
-            ///             selectString = x;
-            ///             break;
-            ///         case 1 : 
-            ///             selectstring = y;
-            ///             break;
-            ///         default:
-            ///             break;
-            ///     }
-            ///     datarow[] workingrows = exportTable.select(selectstring);
-            ///     foreach (Datarow row in workingrows){
-            ///         testringlist.add(eppoutstirng);
-            ///     }
-            ///     // save the testingstring to file
-            /// }
-
-
-            DataRow[] workingRows = exportTable.Select("[TE final well] <> 'None'");
-            foreach (DataRow teRow in workingRows)
+            List<string> dnaStringList = new List<string>();
+            // open a TE file to write to
+            // open a DNA file to write to 
+            // open a Intermediate file to write to
+            string selectString = "";
+            for (int transfertype = 0; transfertype < 7; transfertype++){
+                switch (transfertype){
+                    //Well  Input DNA   Dilution Ratio  TE intermediate well    TE final well   Final Volume    Final Concentration
+                    case 0 :
+                        // Te to final well
+                        selectString = "[TE final well] <> 'None'";
+                         break;
+                    case 1:
+                        // te to intermediate well
+                        selectString = "[TE intermediate well] <> 'None'";
+                        break;
+                    case 2:
+                        // dilute dna to intermediate
+                        selectString = "[Input DNA] NOT LIKE 'Orig*' AND [TE intermediate well] <> 'None'";
+                        break;
+                    case 3:
+                        // original dna to intermediate
+                        selectString = "[Input DNA] LIKE 'Orig*' AND [TE intermediate well] <> 'None'";
+                        break;
+                    case 4:
+                        // dilute dna to final
+                        selectString = "[Input DNA] NOT LIKE 'Orig*' AND [TE intermediate well] >= 'None'";
+                        break;
+                    case 5:
+                        // original dna to final
+                        selectString = "[Input DNA] LIKE 'Orig*' AND [TE intermediate well] >= 'None'";
+                        break;
+                    case 6:
+                        // intermediate dna to final
+                        selectString = "[TE intermediate well] <> 'None'";
+                        break;
+                    case -1:
+                        //case reserved for wtf cases
+                        selectString = "[orginal well] = 0";
+                        break;
+                    default:
+                         break;
+                 }
+                if (transfertype == 0 || transfertype == 1)
+                {
+                    DataRow[] workingrows = exportTable.Select(selectString);
+                    foreach (DataRow row in workingrows)
+                    {
+                        EppCsvString epOutstring = new EppCsvString();
+                        epOutstring.DataIn(Convert.ToDouble(row.ItemArray[4 - transfertype]), transfertype, row.ItemArray[0].ToString());
+                        teStringList.Add(epOutstring.textOut);
+                    }
+                }
+                else if (transfertype == 4 || transfertype == 5)
+                {
+                    DataRow[] workingrows = exportTable.Select(selectString);
+                    foreach (DataRow row in workingrows) {
+                        EppCsvString epOutString = new EppCsvString();
+                        try
+                        {
+                            if (row.ItemArray[4].ToString() == "None") { 
+                                double largerFinalDNA = Convert.ToDouble(row.ItemArray[5]);
+                                epOutString.DataIn(largerFinalDNA, transfertype, row.ItemArray[0].ToString());
+                                dnaStringList.Add(epOutString.textOut);
+                            }
+                        } catch (FormatException)
+                        {
+                            epOutString.DataIn(dnaVolumeInitial, transfertype, row.ItemArray[0].ToString());
+                            dnaStringList.Add(epOutString.textOut);
+                        }
+                        catch (Exception otherException)
+                        {
+                            String errorMessage;
+                            errorMessage = "Error: ";
+                            errorMessage = String.Concat(errorMessage, otherException.Message);
+                            errorMessage = String.Concat(errorMessage, " Line: ");
+                            errorMessage = String.Concat(errorMessage, otherException.Source);
+                            Console.WriteLine(errorMessage);
+                        }
+                    }
+                } else
+                {
+                    DataRow[] workingrows = exportTable.Select(selectString);
+                    foreach (DataRow row in workingrows)
+                    {
+                        EppCsvString epOutString = new EppCsvString();
+                        epOutString.DataIn(dnaVolumeInitial, transfertype, row.ItemArray[0].ToString());
+                        dnaStringList.Add(epOutString.textOut);
+                    }
+                }
+                 // save the testingstring to file
+             }
+            // functions
+            // to
+            // sort
+            // list
+            // here
+            
+            DataTable outputCSVOne = new DataTable();
+            int columns = 0;
+            //foreach (var array in dnaStringList[0].Split(','))
+            //{
+            //    if (array.Length > columns)
+            //    {
+            //       columns = array.Length;
+            //    }
+            //}
+            columns = 8;
+            // Add columns.
+            for (int i = 0; i < columns; i++)
             {
-                teStringList.Add(teRow.ItemArray[3].ToString());
+                outputCSVOne.Columns.Add();
             }
-            workingRows = exportTable.Select("[TE intermediate well] <> 'None'");
-            foreach (DataRow teRow in workingRows)
+
+            // Add rows.
+            foreach (string thisString in dnaStringList)
             {
-                //
-                // There needs to be a fix for each one of the transfer types for this to work
-                //
-                EppCsvString epOutstring = new EppCsvString();
-                epOutstring.IntakeTableData(teRow.ItemArray, (int)TransferType.TeIntermediate);
-                //teStringList.Add(teRow.ItemArray[4].ToString());
+                outputCSVOne.Rows.Add(thisString.Split(','));
+            }
+            dataGridViewOut.DataSource = outputCSVOne;
+            OutputCSV(dnaStringList, 1);
+        }
+        public void OutputCSV(List<string> epFormattedIn, int formatIn)
+        {
+            string outputName = Path.GetFileNameWithoutExtension(QubitFileInString) + "DNA.csv";
+            string outputPath = Path.GetDirectoryName(QubitFileInString) + outputName;
+            using (StreamWriter outfile = new StreamWriter(outputPath))
+            {
+                foreach (string s in ImportEppCsv())
+                {
+                    outfile.WriteLine(s);
+                }
+                foreach (string s in epFormattedIn)
+                {
+                    outfile.WriteLine(s);
+                }
             }
         }
+
         /// <summary>
-        /// Output string creator class.  Stores dilution data as epMotion formated csv output strings.
+        /// epMotion CSV input string creator class.  Stores dilution data as epMotion formated csv input strings.
         /// </summary>
         private class EppCsvString
         {
-            string textOut;
+            public string textOut;
             bool assignProblem;
 
             string barcodeID;
@@ -379,10 +564,16 @@ namespace QuibitToIlluminaDNA
                 barcodeID = "";
                 assignProblem = false;
             }
-            public void IntakeTableData(object[] dataRowIn, int transferTypeIn )
+            /// <summary>
+            /// Collects data for a substantiated eppCsvString. Performs internal calculations to provide textOut.
+            /// </summary>
+            /// <param name="volumeIn"> takes in te or dna volume </param>
+            /// <param name="transferTypeIn"> takes in enum TransferType </param>
+            /// <param name="wellIn"> take in well number </param>
+            public void DataIn (double volumeIn, int transferTypeIn, string wellIn )
             {
-                assignWell(dataRowIn[0].ToString());
-                assignVolume(Convert.ToDouble(dataRowIn[3]));
+                assignWell(wellIn);
+                assignVolume(volumeIn);
                 assignRack(transferTypeIn);
                 if (assignProblem)
                     return;
@@ -465,9 +656,13 @@ namespace QuibitToIlluminaDNA
             }
             
         }
+        /// <summary>
+        /// Import header format for a epMotion file.  Used for writting header sequence of CSV outputs.
+        /// </summary>
+        /// <returns></returns>
         static List<string> ImportEppCsv()
         {
-            List<string> eppFileHeader = new List<string>(7);
+            List<string> eppFileHeader = new List<string>(new string[7]);
             eppFileHeader[0] = "Rack,Src.Barcode,Src.List Name,Dest.Barcode,Dest.List Name,,,";
             eppFileHeader[1] = "1,,,,,,,";
             eppFileHeader[2] = "2,,,,,,,";
@@ -485,6 +680,16 @@ namespace QuibitToIlluminaDNA
         {
             TeIntermediate, TeFinal,
             DiluteDna2Intermediate, OriginalDna2Intermediate, DiluteDna2Final, OrginalDna2Final, Intermediate2Final
+        }
+
+        private void checkBox2_CheckedChanged(object sender, EventArgs e)
+        {
+            useLowDNA = checkBox2.Checked;
+        }
+
+        private void checkBox3_CheckedChanged(object sender, EventArgs e)
+        {
+            useHighDNA = checkBox3.Checked;
         }
     }
 }
