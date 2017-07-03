@@ -319,6 +319,27 @@ namespace QuibitToIlluminaDNA
             //DataView teDataView = new DataView(exportTable);
             //teDataView.RowFilter = "[TE final well] <> 'None' OR [TE intermediate well] <> 'None'";
             List<string> teStringList = new List<string>();
+
+            /// turn this whole thing into a for loop
+            /// for (int transfertype = 0; transfertype < 7; transfertype++){
+            ///     switch (transfertype){
+            ///         case 0 : 
+            ///             selectString = x;
+            ///             break;
+            ///         case 1 : 
+            ///             selectstring = y;
+            ///             break;
+            ///         default:
+            ///             break;
+            ///     }
+            ///     datarow[] workingrows = exportTable.select(selectstring);
+            ///     foreach (Datarow row in workingrows){
+            ///         testringlist.add(eppoutstirng);
+            ///     }
+            ///     // save the testingstring to file
+            /// }
+
+
             DataRow[] workingRows = exportTable.Select("[TE final well] <> 'None'");
             foreach (DataRow teRow in workingRows)
             {
@@ -361,11 +382,12 @@ namespace QuibitToIlluminaDNA
             public void IntakeTableData(object[] dataRowIn, int transferTypeIn )
             {
                 assignWell(dataRowIn[0].ToString());
-                assignVolume(Convert.ToDouble(dataRowIn[4]));
+                assignVolume(Convert.ToDouble(dataRowIn[3]));
                 assignRack(transferTypeIn);
                 if (assignProblem)
                     return;
-
+                GenerateString();
+                Console.WriteLine(textOut);
             }
             private void GenerateString()
             {
@@ -377,7 +399,7 @@ namespace QuibitToIlluminaDNA
                 textOut += destinationWell + ",";
                 textOut += volume + ",";
                 textOut += tool + ",";
-                textOut += name + ",";
+                textOut += name;
             }
             public void assignWell(string wellIn)
             {
