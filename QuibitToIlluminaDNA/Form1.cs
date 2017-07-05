@@ -462,10 +462,13 @@ namespace QuibitToIlluminaDNA
                         EppCsvString epOutString = new EppCsvString();
                         try
                         {
-                            if (row.ItemArray[4].ToString() == "None") { 
-                                double largerFinalDNA = Convert.ToDouble(row.ItemArray[5]);
+                            if (row.ItemArray[3].ToString() == "None") { 
+                                double largerFinalDNA = Convert.ToDouble(row.ItemArray[5]) - Convert.ToDouble(row.ItemArray[4]);
                                 epOutString.DataIn(largerFinalDNA, transfertype, row.ItemArray[0].ToString());
                                 dnaStringList.Add(epOutString.textOut);
+                            } else
+                            {
+                                Console.WriteLine("Cannot find none in " + row.ItemArray[4]);
                             }
                         } catch (FormatException)
                         {
@@ -538,6 +541,7 @@ namespace QuibitToIlluminaDNA
             else if (formatIn == 2)
                 outputName = Path.GetFileNameWithoutExtension(QubitFileInString) + "_TE_EP.csv";
             string outputPath = Path.GetDirectoryName(QubitFileInString) + Path.DirectorySeparatorChar + outputName;
+            // TODO: see if this can be identified as open already and save as secondary name
             using (StreamWriter outfile = new StreamWriter(outputPath))
             {
                 foreach (string s in ImportEppCsv())
@@ -582,7 +586,7 @@ namespace QuibitToIlluminaDNA
             /// <param name="wellIn"> take in well number </param>
             public void DataIn (double volumeIn, int transferTypeIn, string wellIn )
             {
-                assignWell(wellIn);
+                assignWell(wellIn, transferTypeIn);
                 assignVolume(volumeIn);
                 assignRack(transferTypeIn);
                 if (assignProblem)
@@ -602,10 +606,14 @@ namespace QuibitToIlluminaDNA
                 textOut += tool + ",";
                 textOut += name;
             }
-            public void assignWell(string wellIn)
+            public void assignWell(string wellIn, int transferType)
             {
+                // TODO : add in a 1A as the well for te, and check for input type
+                if (transferType == 0 || transferType == 1)
+                    sourceWell = "1A";
+                else
+                    sourceWell = wellIn;
                 destinationWell = wellIn;
-                sourceWell = wellIn;
                 if (wellIn == null)
                     assignProblem = true;
             }
