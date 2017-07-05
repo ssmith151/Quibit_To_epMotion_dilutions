@@ -492,24 +492,29 @@ namespace QuibitToIlluminaDNA
                         dnaStringList.Add(epOutString.textOut);
                     }
                 }
-                 // save the testingstring to file
              }
-            // functions
-            // to
-            // sort
-            // list
-            // here
-            
+            // sort that list
+            dnaStringList.Sort(delegate (string x, string y)
+            {
+                int rackCompare = x.Split(',')[1].CompareTo(y.Split(',')[1]);
+                if (x.Split(',')[1] == null && y.Split(',')[1] == null) return 0;
+                else if (x.Split(',')[1] == null) return -1;
+                else if (y.Split(',')[1] == null) return 1;
+                else if (rackCompare != 0 ) return rackCompare;
+                else return x.Split(',')[2].CompareTo(y.Split(',')[2]);
+            });
+            teStringList.Sort(delegate (string x, string y)
+            {
+                int rackCompare = x.Split(',')[1].CompareTo(y.Split(',')[1]);
+                if (x.Split(',')[1] == null && y.Split(',')[1] == null) return 0;
+                else if (x.Split(',')[1] == null) return -1;
+                else if (y.Split(',')[1] == null) return 1;
+                else if (rackCompare != 0) return rackCompare;
+                else return x.Split(',')[2].CompareTo(y.Split(',')[2]);
+            });
+
             DataTable outputCSVOne = new DataTable();
-            int columns = 0;
-            //foreach (var array in dnaStringList[0].Split(','))
-            //{
-            //    if (array.Length > columns)
-            //    {
-            //       columns = array.Length;
-            //    }
-            //}
-            columns = 8;
+            int columns = 8;
             // Add columns.
             for (int i = 0; i < columns; i++)
             {
@@ -523,11 +528,16 @@ namespace QuibitToIlluminaDNA
             }
             dataGridViewOut.DataSource = outputCSVOne;
             OutputCSV(dnaStringList, 1);
+            OutputCSV(teStringList, 2);
         }
         public void OutputCSV(List<string> epFormattedIn, int formatIn)
         {
-            string outputName = Path.GetFileNameWithoutExtension(QubitFileInString) + "DNA.csv";
-            string outputPath = Path.GetDirectoryName(QubitFileInString) + outputName;
+            string outputName = "";
+            if (formatIn == 1)
+                outputName = Path.GetFileNameWithoutExtension(QubitFileInString) + "_DNA_EP.csv";
+            else if (formatIn == 2)
+                outputName = Path.GetFileNameWithoutExtension(QubitFileInString) + "_TE_EP.csv";
+            string outputPath = Path.GetDirectoryName(QubitFileInString) + Path.DirectorySeparatorChar + outputName;
             using (StreamWriter outfile = new StreamWriter(outputPath))
             {
                 foreach (string s in ImportEppCsv())
