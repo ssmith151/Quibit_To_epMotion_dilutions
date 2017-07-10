@@ -276,14 +276,14 @@ namespace QuibitToIlluminaDNA
             FileSelectedLabel.Update();
             DataTable tableOut = InitializeTable();
             int counter = 0;
-            while(tableOut.Rows.Count + 1 < listIn.Count())
+            while(tableOut.Rows.Count < listIn.Count())
             {
                 counter++;
                 tableOut.Rows.Add();
                 FileSelectedLabel.Text = "Adding Rows: " + counter.ToString();
                 FileSelectedLabel.Update();
             }
-            for (int i = 0; i < listIn.Count()-1; i++)
+            for (int i = 0; i < listIn.Count(); i++)
             {
                 if (listIn[i] == null)
                     continue;
