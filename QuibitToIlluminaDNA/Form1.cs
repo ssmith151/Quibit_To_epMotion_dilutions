@@ -223,8 +223,10 @@ namespace QuibitToIlluminaDNA
             }
             else if (dnaConIn > dnaConcetrationFinal + 0.02)
             {
-                // tricky tricky Equation: 2^floor(log2(x))
-                var dilutionFactor = Math.Pow(2, (Math.Floor(Math.Log(dnaConIn, 2))));
+                // tricky tricky Equation: 2^floor(log2(x) - ([final] - 1)) // last part only if final > 1
+                float diltionFix = dnaConcetrationFinal - 1;
+                if (diltionFix < 0) diltionFix = 0;
+                var dilutionFactor = Math.Pow(2, ((Math.Floor(Math.Log(dnaConIn, 2))) - diltionFix));
                 if (dilutionFactor < 1) { dilutionFactor = 1; }
                 Console.WriteLine("Dilution factor : " + dilutionFactor);
                 if (dilutionFactor == 1)
@@ -235,7 +237,7 @@ namespace QuibitToIlluminaDNA
                     lineOutput[5] = (TEOnlyAddition(dnaVolumeInitial, dnaConIn, dnaConcetrationFinal) + dnaVolumeInitial).ToString();
                     lineOutput[6] = (dnaConIn *(dnaVolumeInitial / Convert.ToDouble(lineOutput[5]))).ToString();
                 }
-                else if (dilutionFactor < 64)
+                else if (dilutionFactor <= 64)
                 {
                     var dnaConcentrationIntermediate = dnaConIn / dilutionFactor;
                     string[] s = { dnaConIn.ToString(), dilutionFactor.ToString(), ((dilutionFactor * dnaVolumeInitial) - dnaVolumeInitial).ToString(), TEOnlyAddition(dnaVolumeInitial, dnaConcentrationIntermediate, dnaConcetrationFinal).ToString() };
@@ -321,6 +323,13 @@ namespace QuibitToIlluminaDNA
                 errorMessage = String.Concat(errorMessage, e.Message);
                 errorMessage = String.Concat(errorMessage, " Line: ");
                 errorMessage = String.Concat(errorMessage, e.Source);
+            }
+            if (Math.Sign(teVolumeOut) == -1)
+            {
+                Console.WriteLine("Issue with TE addition, produced : " + teVolumeOut);
+                Console.WriteLine("DNA volume in : " + dnaVolumeIn);
+                Console.WriteLine("DNA concentration in : " + dnaConcentrationIn);
+                Console.WriteLine("DNA concentration final : " + finalConcentrationTarget);
             }
             return teVolumeOut;
         }
