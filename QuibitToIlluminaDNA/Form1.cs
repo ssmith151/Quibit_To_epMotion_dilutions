@@ -24,6 +24,7 @@ namespace QuibitToIlluminaDNA
         public bool usingDiluteInput;
         public bool useLowDNA;
         public bool useHighDNA;
+        public bool use12x8Plate;
 
         public MainForm()
         {
@@ -71,13 +72,28 @@ namespace QuibitToIlluminaDNA
             char whatatat = char.Parse(currentWell.Remove(1));
             int row = Convert.ToInt32(whatatat) - 64;
             int column = int.Parse(currentWell.Substring(1));
-            if(row + 1 > 8)
+            if (!use12x8Plate)
             {
-                column++;
-                row = 1;
+                if (row + 1 > 8)
+                {
+                    column++;
+                    row = 1;
+                }
+                else
+                {
+                    row++;
+                }
             } else
             {
-                row++;
+                if (column + 1 > 12)
+                {
+                    row++;
+                    column = 1;
+                }
+                else
+                {
+                    column++;
+                }
             }
             wellIn = (Convert.ToChar(row + 64)).ToString() + column.ToString();
             Console.WriteLine("Row : " + Convert.ToChar(row + 64));
@@ -203,13 +219,24 @@ namespace QuibitToIlluminaDNA
             {
                 if (usingDiluteInput && useLowDNA)
                 {
+                    float TEAddFloat = TEOnlyAddition(dnaVolumeInitial, dnaConIn * 10, dnaConcetrationFinal);
                     // for bad DNA < initial concentration, use original
                     lineOutput[1] = "Orig " + dnaConIn * 10;
                     lineOutput[2] = "0";
                     lineOutput[3] = "None";
-                    lineOutput[4] = TEOnlyAddition(dnaVolumeInitial, dnaConIn * 10, dnaConcetrationFinal).ToString();
-                    lineOutput[5] = (Convert.ToDouble(lineOutput[4]) + dnaVolumeInitial).ToString();
-                    lineOutput[6] = (dnaConIn / Convert.ToDouble(lineOutput[5])).ToString();
+                    if (TEAddFloat > 0)
+                    {
+                        lineOutput[4] = TEAddFloat.ToString();
+                        lineOutput[5] = (Convert.ToDouble(lineOutput[4]) + dnaVolumeInitial).ToString();
+                        lineOutput[6] = ((dnaConIn * 10) * ( dnaVolumeInitial / Convert.ToDouble(lineOutput[5]))).ToString();
+                    }
+                    else {
+                        lineOutput[4] = "None";
+                        lineOutput[5] = (dnaVolumeInitial).ToString();
+                        lineOutput[6] = (dnaConIn * 10).ToString();
+                    }
+                    
+                    ;
                 } else
                 {
                    
@@ -231,11 +258,21 @@ namespace QuibitToIlluminaDNA
                 Console.WriteLine("Dilution factor : " + dilutionFactor);
                 if (dilutionFactor == 1)
                 {
+                    float TEAddFloat = TEOnlyAddition(dnaVolumeInitial, dnaConIn, dnaConcetrationFinal);
                     lineOutput[2] = "1:"+ dilutionFactor.ToString();
                     lineOutput[3] = "None";
-                    lineOutput[4] = TEOnlyAddition(dnaVolumeInitial, dnaConIn, dnaConcetrationFinal).ToString();
-                    lineOutput[5] = (TEOnlyAddition(dnaVolumeInitial, dnaConIn, dnaConcetrationFinal) + dnaVolumeInitial).ToString();
-                    lineOutput[6] = (dnaConIn *(dnaVolumeInitial / Convert.ToDouble(lineOutput[5]))).ToString();
+                    if (TEAddFloat > 0)
+                    {
+                        lineOutput[4] = TEAddFloat.ToString();
+                        lineOutput[5] = (TEAddFloat + dnaVolumeInitial).ToString();
+                        lineOutput[6] = (dnaConIn * (dnaVolumeInitial / Convert.ToDouble(lineOutput[5]))).ToString();
+                    }
+                    else
+                    {
+                        lineOutput[4] = "None";
+                        lineOutput[5] = (dnaVolumeInitial).ToString();
+                        lineOutput[6] = (dnaConIn).ToString();
+                    }
                 }
                 else if (dilutionFactor <= 64)
                 {
@@ -324,8 +361,9 @@ namespace QuibitToIlluminaDNA
                 errorMessage = String.Concat(errorMessage, " Line: ");
                 errorMessage = String.Concat(errorMessage, e.Source);
             }
-            if (Math.Sign(teVolumeOut) == -1)
+            if (teVolumeOut < 0)
             {
+                teVolumeOut = 0;
                 Console.WriteLine("Issue with TE addition, produced : " + teVolumeOut);
                 Console.WriteLine("DNA volume in : " + dnaVolumeIn);
                 Console.WriteLine("DNA concentration in : " + dnaConcentrationIn);
@@ -717,6 +755,11 @@ namespace QuibitToIlluminaDNA
         private void checkBox3_CheckedChanged(object sender, EventArgs e)
         {
             useHighDNA = checkBox3.Checked;
+        }
+
+        private void checkBox4_CheckedChanged(object sender, EventArgs e)
+        {
+            use12x8Plate = checkBox4.Checked;
         }
     }
 }
